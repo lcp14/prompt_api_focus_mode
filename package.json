@@ -1,0 +1,21 @@
+{
+  "name": "prompt_api_focus_mode",
+  "version": "1.0.0",
+  "description": "Extension for made questions about content of a page",
+  "license": "ISC",
+  "author": "Leandro Peres",
+  "main": "background.js",
+  "scripts": {
+    "build": "rollup -c rollup.config.mjs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "@rollup/plugin-commonjs": "^29.0.2",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "dompurify": "^3.4.2",
+    "marked": "^18.0.3",
+    "rollup": "^4.60.3",
+    "rollup-plugin-copy": "^3.5.0"
+  }
+}
