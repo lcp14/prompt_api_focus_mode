@@ -10,11 +10,56 @@ const warningElement = document.body.querySelector('#warning');
 chrome.storage.session.get('pageContent', ({ pageContent }) => {
   onContentChange(pageContent);
 });
-
+chrome.storage.session.get(['pageContent', 'url'], function(result) {
+  const { pageContent, url } = result;
+  console.log(result)
+  if(pageContent)
+    onContentChange(pageContent);
+  else
+    onContentPDF(url)
+});
 chrome.storage.session.onChanged.addListener((changes) => {
   const pageContent = changes['pageContent'];
-  onContentChange(pageContent.newValue);
+  const url = changes['url'];
+  if(pageContent)
+    onContentChange(pageContent.newValue);
+  else
+    onContentPDF(url.newValue);
 });
+
+async function onContentPDF(url) {
+  const text = await extractPdfText(url);
+  console.info("Content:", text);
+  if (text) {
+    generateQuestions(text);
+  }
+}
+
+async function extractPdfText(url) {
+  // PDF.js is loaded via manifest as a side panel script
+  const pdfjsLib = window.pdfjsLib
+  pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('libs/pdf.worker.mjs');
+  console.info(chrome.runtime.getURL('libs/pdf.worker.mjs'))
+  try {
+    const loadingTask = pdfjsLib.getDocument(url);
+    const pdf = await loadingTask.promise;
+    console.log(pdf);
+    let fullText = '';
+    const maxPages = Math.min(pdf.numPages, 20); // cap to avoid huge prompts
+
+    for (let i = 1; i <= maxPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map((item) => item.str).join(' ');
+      fullText += `\n--- Page ${i} ---\n${pageText}`;
+    }
+
+    return fullText.trim();
+  } catch (err) {
+    console.error('PDF extraction failed:', err);
+    return null;
+  }
+}
 
 async function onContentChange(newContent) {
   if (pageContent == newContent) {

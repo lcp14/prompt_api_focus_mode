@@ -13,9 +13,16 @@
     "side_panel": {
         "default_path": "sidepanel/index.html"
     },
+    "web_accessible_resources": [
+        {
+        "resources": ["libs/pdf.worker.mjs"],
+      "matches": ["<all_urls>"]
+        }
+    ],
     "background": {
         "service_worker": "background.js"
     },
+    
     "permissions": [
         "tabs",
         "activeTab",
@@ -24,6 +31,7 @@
         "storage"
     ],
     "host_permissions": [
+        "file:///*",
         "http://*/*",
         "https://*/*"
     ]
