@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+
 const MAX_MODEL_CHARS = 4000;
 
 let pageContent = '';
@@ -7,13 +8,9 @@ let pageContent = '';
 const summaryElement = document.body.querySelector('#summary');
 const warningElement = document.body.querySelector('#warning');
 
-chrome.storage.session.get('pageContent', ({ pageContent }) => {
-  onContentChange(pageContent);
-});
-chrome.storage.session.get(['pageContent', 'url'], function(result) {
+chrome.storage.session.get(['pageContent', 'url'], function (result) {
   const { pageContent, url } = result;
-  console.log(result)
-  if(pageContent)
+  if (pageContent)
     onContentChange(pageContent);
   else
     onContentPDF(url)
@@ -21,7 +18,7 @@ chrome.storage.session.get(['pageContent', 'url'], function(result) {
 chrome.storage.session.onChanged.addListener((changes) => {
   const pageContent = changes['pageContent'];
   const url = changes['url'];
-  if(pageContent)
+  if (pageContent)
     onContentChange(pageContent.newValue);
   else
     onContentPDF(url.newValue);
@@ -29,7 +26,6 @@ chrome.storage.session.onChanged.addListener((changes) => {
 
 async function onContentPDF(url) {
   const text = await extractPdfText(url);
-  console.info("Content:", text);
   if (text) {
     generateQuestions(text);
   }
@@ -39,13 +35,11 @@ async function extractPdfText(url) {
   // PDF.js is loaded via manifest as a side panel script
   const pdfjsLib = window.pdfjsLib
   pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('libs/pdf.worker.mjs');
-  console.info(chrome.runtime.getURL('libs/pdf.worker.mjs'))
   try {
     const loadingTask = pdfjsLib.getDocument(url);
     const pdf = await loadingTask.promise;
-    console.log(pdf);
     let fullText = '';
-    const maxPages = Math.min(pdf.numPages, 20); // cap to avoid huge prompts
+    const maxPages = Math.min(pdf.numPages, 3); // cap to avoid huge prompts
 
     for (let i = 1; i <= maxPages; i++) {
       const page = await pdf.getPage(i);
@@ -71,39 +65,38 @@ async function onContentChange(newContent) {
   generateQuestions(newContent);
 }
 
+const prompOptions = () => ({
+  expectedInputs: [
+    { type: 'text', languages: ['en'] }
+  ],
+  expectedOutputs: [
+    { type: "text", languages: ["en"] }
+  ],
+})
+
 async function generateQuestions(newContent) {
-  const availability = await LanguageModel.availability({
-    expectedInputs: [
-      { type: 'text', languages: ['en'] }
-    ],
-    expectedOutputs: [
-      { type: "text", languages: ["en"] }
-    ],
-  });
+  const availability = await LanguageModel.availability(prompOptions());
   if (availability === 'unavailable') {
     console.error('LanguageModel is not available')
   }
 
   const session = await LanguageModel.create({
+    ...prompOptions(),
     monitor(m) {
       m.addEventListener('downloadprogress', (e) => {
         console.log(`Downloaded ${e.loaded * 100}%`);
       });
     },
-    expectedInputs: [
-      { type: 'text', languages: ['en'] }
-    ],
-    expectedOutputs: [
-      { type: "text", languages: ["en"] }
-    ],
     initialPrompts: [
       {
         role: 'system', content: 'You are a helpful teacher that create quizzes to help users understand the page content'
       },
     ]
   });
+
+
   session.addEventListener("contextoverflow", () => {
-    console.log("We've gone past the context window, and some inputs will be dropped!");
+    console.info("We've gone past the context window, and some inputs will be dropped!");
   });
 
   const prompt = `Based on the following page content, create 3 multiple-choice questions:
@@ -181,22 +174,28 @@ async function generateQuestions(newContent) {
   const result = await session.prompt(prompt, {
     responseConstraint: schema
   });
-  session.destroy();
-  renderQuestions(JSON.parse(result));
 
+  renderQuestions(JSON.parse(result));
 }
 
 function renderQuestions(data) {
-      const questionsContainer = document.getElementById("questions");
+  const questionsContainer = document.getElementById("questions");
 
-      questionsContainer.innerHTML = "";
+  questionsContainer.innerHTML = "";
 
-      data.questions.forEach((q, index) => {
+  data.questions.forEach((q, index) => {
 
-        const card = document.createElement("div");
-        card.className = "question-card";
+    const card = document.createElement("div");
+    card.className = "question-card";
 
-        card.innerHTML =DOMPurify.sanitize(`
+    card.innerHTML = getTemplate(q)
+
+    questionsContainer.appendChild(card);
+  });
+}
+
+function getTemplate(q) {
+  return DOMPurify.sanitize(`
           <div class="question-description">
 
             <div class="question-title">
@@ -235,7 +234,4 @@ function renderQuestions(data) {
 
           </div>
         `);
-
-        questionsContainer.appendChild(card);
-      });
-    }
+}
