@@ -188,13 +188,13 @@ function renderQuestions(data) {
     const card = document.createElement("div");
     card.className = "question-card";
 
-    card.innerHTML = getTemplate(q)
+    card.innerHTML = getTemplate(q, index)
 
     questionsContainer.appendChild(card);
   });
 }
 
-function getTemplate(q) {
+function getTemplate(q, index) {
   return DOMPurify.sanitize(`
           <div class="question-description">
 
