@@ -7,7 +7,7 @@ This sample demonstrates how to use Chrome's built-in Prompt API to generate AI-
 - [ ] Improve initial prompt to reduce use of tokens
 - [ ] Shows only one question to improve performance, further questions would be an user action
 - [ ] If possible show where LLM found the answer on page
-- [ ] Add the ability to create a quizz about PDF file, limiting entry per page (avoid problems with big pdfs)
+- [x] Add the ability to create a quizz about PDF file
 
 ## Overview
 
